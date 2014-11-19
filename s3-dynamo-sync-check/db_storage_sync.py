@@ -6,6 +6,7 @@ from lib.s3 import S3
 from lib.dynamodb import DynamoDB
 
 BATCH_QUERY_CNT = 10000
+LOG_PATH = "/tmp/abc.log"
 
 
 def s3_checker(key):
@@ -63,18 +64,19 @@ def get_result_set(region, bucket, table, base, marker):
 
 def get_next_marker(base, result_set):
     if base == "s3":
-        return result_set[-1].name
+        return result_set[-1].name if result_set else None
     elif base == "dynamodb":
-        return result_set.kwargs['exclusive_start_key'].values()
+        return result_set.last_evaluated_key[0] if result_set and result_set.last_evaluated_key else None
 
 
 def main(region, bucket, table, base='S3', threadcnt='1'):
+    #TODO - refactor
+    logger.info("Start to process as base %s, bucket=%s, table=%s" % (base, bucket, table))
     marker = None
     while True:
         result_set = get_result_set(region, bucket, table, base, marker)
-        #if not len(result_set):
         if not result_set:
-            print "BBBBBREAK"
+            logger.debug("job is done")
             break
 
         function = globals()[base + "_checker"]
@@ -83,7 +85,10 @@ def main(region, bucket, table, base='S3', threadcnt='1'):
         [pool.putRequest(req) for req in reqs]
         pool.wait()
         marker = get_next_marker(base, result_set)
-        print marker
+        if not marker:
+            logger.debug("cannot retrieve next marker, job is done")
+            break
+    logger.info("End of process")
 
 
 if __name__ == '__main__':
@@ -100,7 +105,7 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
 
     # FIXME - file logging
-    fh = logging.FileHandler('/tmp/abc.log')
+    fh = logging.FileHandler(LOG_PATH)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -113,7 +118,6 @@ if __name__ == '__main__':
     s3_bucket = args.bucket
 
     if db_connection:
-        logger.info("Start to process")
         main(args.region, args.bucket, args.table, args.base, args.threadcount)
     else:
         raise ImportError("No DB connection")
