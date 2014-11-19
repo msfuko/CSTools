@@ -6,8 +6,8 @@ class DynamoDB(AWSStorageObject):
     def get_storage_set(self, name):
         return self.conn.get_table(name)
 
-    def get_batch_list(self, table, markers, max_count=None):
-        pass
+    def get_batch_list(self, table, marker, max_count=None):
+        return table.scan(max_results=max_count, exclusive_start_key=marker)
 
     def list(self, table):
         return table.scan()

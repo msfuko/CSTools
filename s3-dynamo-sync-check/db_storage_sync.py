@@ -42,7 +42,7 @@ def nonsync_logging(request, key):
         logger.info("Not Sync object - " + key)
 
 
-def get_result_set(region, bucket, table, base):
+def get_result_set(region, bucket, table, base, marker):
     connection = Connection(base, region)
     base = base.lower()
     storage_obj = None
@@ -55,18 +55,35 @@ def get_result_set(region, bucket, table, base):
         base_set = table
         storage_obj = DynamoDB(connection=connection.new_connection())
     storage_set = storage_obj.get_storage_set(base_set)
-    result_set = storage_obj.list(storage_set) if storage_set else None
+    result_set = storage_obj.get_batch_list(storage_set, marker, BATCH_QUERY_CNT)
+    #result_set = storage_obj.list(storage_set) if storage_set else None
 
     return result_set
 
 
+def get_next_marker(base, result_set):
+    if base == "s3":
+        return result_set[-1].name
+    elif base == "dynamodb":
+        return result_set.kwargs['exclusive_start_key'].values()
+
+
 def main(region, bucket, table, base='S3', threadcnt='1'):
-    result_set = get_result_set(region, bucket, table, base)
-    function = globals()[base + "_checker"]
-    pool = threadpool.ThreadPool(int(threadcnt))
-    reqs = threadpool.makeRequests(function, result_set, nonsync_logging)
-    [pool.putRequest(req) for req in reqs]
-    pool.wait()
+    marker = None
+    while True:
+        result_set = get_result_set(region, bucket, table, base, marker)
+        #if not len(result_set):
+        if not result_set:
+            print "BBBBBREAK"
+            break
+
+        function = globals()[base + "_checker"]
+        pool = threadpool.ThreadPool(int(threadcnt))
+        reqs = threadpool.makeRequests(function, result_set, nonsync_logging)
+        [pool.putRequest(req) for req in reqs]
+        pool.wait()
+        marker = get_next_marker(base, result_set)
+        print marker
 
 
 if __name__ == '__main__':

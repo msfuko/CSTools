@@ -19,7 +19,7 @@ class AWSStorageObject(object):
         pass
 
     @abstractmethod
-    def get_batch_list(self, storage_set, markers, max_count=None):
+    def get_batch_list(self, storage_set, marker, max_count=None):
         pass
 
     @abstractmethod
