@@ -5,6 +5,8 @@ from lib.connection import Connection
 from lib.s3 import S3
 from lib.dynamodb import DynamoDB
 
+BATCH_QUERY_CNT = 10000
+
 
 def s3_checker(key):
     """check result_set is all in DynamoDB
@@ -12,8 +14,8 @@ def s3_checker(key):
     global db_connection, db_table
     db = DynamoDB(connection=db_connection.new_connection())
     if db:
-        table = db.get_table(db_table)
-        item = db.get_table_item(table, hash_key=key.name)
+        table = db.get_storage_set(db_table)
+        item = db.get_item(table, hash_key=key.name)
         if item:
             pass
         else:
@@ -22,12 +24,13 @@ def s3_checker(key):
 
 
 def dynamodb_checker(key):
+    #TODO - merge with s3_checker
     key = key['FileKey']
     global s3_connection, s3_bucket
     s3 = S3(connection=s3_connection.new_connection())
     if s3:
-        bucket = s3.get_bucket(s3_bucket)
-        s3obj = s3.get_key(bucket, key)
+        bucket = s3.get_storage_set(s3_bucket)
+        s3obj = s3.get_item(bucket, key)
         return None if s3obj else key
     return key
 
@@ -40,16 +43,20 @@ def nonsync_logging(request, key):
 
 
 def get_result_set(region, bucket, table, base):
-    base = base.lower()
     connection = Connection(base, region)
+    base = base.lower()
+    storage_obj = None
+    base_set = None
+
     if base == "s3":
-        s3 = S3(connection=connection.new_connection())
-        bucket = s3.get_bucket(bucket)
-        result_set = bucket.list() if bucket else None
-    else:
-        db = DynamoDB(connection=connection.new_connection())
-        tbl = db.get_table(table)
-        result_set = tbl.scan() if tbl else None
+        base_set = bucket
+        storage_obj = S3(connection=connection.new_connection())
+    elif base == "dynamodb":
+        base_set = table
+        storage_obj = DynamoDB(connection=connection.new_connection())
+    storage_set = storage_obj.get_storage_set(base_set)
+    result_set = storage_obj.list(storage_set) if storage_set else None
+
     return result_set
 
 
@@ -72,8 +79,14 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--base", type=str, help="s3 | dynamodb", required=False)
 
     # logging
-    logging.config.fileConfig('logging.ini', disable_existing_loggers=False)
+    logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': '/tmp/mylog.log'})
     logger = logging.getLogger(__name__)
+
+    # FIXME - file logging
+    fh = logging.FileHandler('/tmp/abc.log')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
     # parse args
     args = parser.parse_args()
@@ -83,6 +96,7 @@ if __name__ == '__main__':
     s3_bucket = args.bucket
 
     if db_connection:
+        logger.info("Start to process")
         main(args.region, args.bucket, args.table, args.base, args.threadcount)
     else:
         raise ImportError("No DB connection")

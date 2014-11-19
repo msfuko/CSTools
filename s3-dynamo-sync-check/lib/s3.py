@@ -1,24 +1,17 @@
-import logging
-from . import Singleton
+from .awsstorageobject import AWSStorageObject
 
 
-#class S3(Singleton):
-class S3():
+class S3(AWSStorageObject):
 
-    def __init__(self, connection=None, logger=None):
-        self.conn = connection
-        self.logger = logger or logging.getLogger(__name__)
-        self.MAXKEYS = 100
-
-    def get_bucket(self, name):
+    def get_storage_set(self, name):
         return self.conn.get_bucket(name)
 
-    def get_keys_by_markers(self, bucket, markers, max_keys=None):
-        max_keys = self.MAXKEYS if not max_keys else max_keys
-        return bucket.get_all_keys(maxkeys=max_keys, markers=markers)
+    def get_batch_list(self, bucket, markers, max_count=None):
+        max_count = 100 if not max_count else max_count
+        return bucket.get_all_keys(maxkeys=max_count, marker=markers)
 
-    def get_all_keys(self, bucket):
+    def list(self, bucket):
         return bucket.list()
 
-    def get_key(self, bucket, key):
+    def get_item(self, bucket, key):
         return bucket.get_key(key)
