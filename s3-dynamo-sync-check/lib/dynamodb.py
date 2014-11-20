@@ -3,11 +3,14 @@ from .awsstorageobject import AWSStorageObject
 
 class DynamoDB(AWSStorageObject):
 
-    def get_storage_set(self, name):
-        return self.conn.get_table(name)
+    def __str__(self):
+        return "dynamodb"
 
-    def get_batch_list(self, table, markers, max_count=None):
-        pass
+    def get_storage_set(self, name=None):
+        return self.conn.get_table(name or self.storage_set_name)
+
+    def get_batch_list(self, table, marker, max_count=None):
+        return table.scan(request_limit=max_count, exclusive_start_key=marker)
 
     def list(self, table):
         return table.scan()
@@ -22,4 +25,7 @@ class DynamoDB(AWSStorageObject):
             if isinstance(e, DynamoDBKeyNotFoundError):
                 self.logger.error(e.message + " : " + hash_key)
             return None
+
+    def get_last_item_set(self, item_set):
+        return item_set.last_evaluated_key[0] if item_set and item_set.last_evaluated_key else None
 

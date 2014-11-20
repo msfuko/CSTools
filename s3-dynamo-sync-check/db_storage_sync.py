@@ -16,11 +16,7 @@ def s3_checker(key):
     if db:
         table = db.get_storage_set(db_table)
         item = db.get_item(table, hash_key=key.name)
-        if item:
-            pass
-        else:
-            # the ones not in dynamoDB but in s3
-            return key.name
+        return None if item else key.name
 
 
 def dynamodb_checker(key):
@@ -34,7 +30,6 @@ def dynamodb_checker(key):
         bucket = s3.get_storage_set(s3_bucket)
         s3obj = s3.get_item(bucket, key)
         return None if s3obj else key
-    return key
 
 
 def nonsync_logging(request, key):
@@ -50,15 +45,14 @@ def get_result_set(region, bucket, table, base):
     connection = Connection(base, region)
     base = base.lower()
     storage_obj = None
-    base_set = None
 
     if base == "s3":
-        base_set = bucket
         storage_obj = S3(connection=connection.new_connection())
+        storage_obj.set_storage_set_name(bucket)
     elif base == "dynamodb":
-        base_set = table
         storage_obj = DynamoDB(connection=connection.new_connection())
-    storage_set = storage_obj.get_storage_set(base_set)
+        storage_obj.set_storage_set_name(table)
+    storage_set = storage_obj.get_storage_set()
     result_set = storage_obj.list(storage_set) if storage_set else None
 
     return result_set
