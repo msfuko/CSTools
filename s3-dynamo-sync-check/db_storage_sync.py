@@ -65,7 +65,7 @@ def get_result_set(storage_obj, marker):
     return result_set
 
 
-def main(region, bucket, table, base='S3', threadcnt='1'):
+def main(region, bucket, table, base, threadcnt='1'):
     logger.info("Start to process as base %s, bucket=%s, table=%s" % (base, bucket, table))
     marker = None
     while True:
@@ -98,10 +98,10 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--bucket", type=str, help="S3 bucket name", required=True)
     parser.add_argument("-t", "--table", type=str, help="DynamoDB table name", required=True)
     parser.add_argument("-c", "--threadcount", type=str, help="thread count", required=False)
-    parser.add_argument("-a", "--base", type=str, help="s3 | dynamodb", required=False)
+    parser.add_argument("-a", "--base", type=str, help="s3 | dynamodb", default="s3", required=False)
 
     # logging
-    logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': '/tmp/mylog.log'})
+    logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': LOG_PATH})
     logger = logging.getLogger(__name__)
 
     # FIXME - file logging
