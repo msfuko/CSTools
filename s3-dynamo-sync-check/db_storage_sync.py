@@ -5,11 +5,11 @@ from lib.connection import Connection
 from lib.s3 import S3
 from lib.dynamodb import DynamoDB
 
-BATCH_QUERY_CNT = 10000
+LOG_PATH = "/tmp/abc.log"
 
 
 def s3_checker(key):
-    """check result_set is all in DynamoDB
+    """THREAD METHOD - check result_set is all in DynamoDB
     """
     global db_connection, db_table
     db = DynamoDB(connection=db_connection.new_connection())
@@ -24,6 +24,8 @@ def s3_checker(key):
 
 
 def dynamodb_checker(key):
+    """THREAD METHOD - check result_set is all in S3
+    """
     #TODO - merge with s3_checker
     key = key['FileKey']
     global s3_connection, s3_bucket
@@ -36,13 +38,15 @@ def dynamodb_checker(key):
 
 
 def nonsync_logging(request, key):
-    """the ones in s3 but not in DB
+    """non-sync item will be logged here
     """
     if key:
         logger.info("Not Sync object - " + key)
 
 
 def get_result_set(region, bucket, table, base):
+    """get result set from storage object
+    """
     connection = Connection(base, region)
     base = base.lower()
     storage_obj = None
@@ -61,13 +65,14 @@ def get_result_set(region, bucket, table, base):
 
 
 def main(region, bucket, table, base='S3', threadcnt='1'):
+    logger.info("Start to process as base %s, bucket=%s, table=%s" % (base, bucket, table))
     result_set = get_result_set(region, bucket, table, base)
     function = globals()[base + "_checker"]
     pool = threadpool.ThreadPool(int(threadcnt))
     reqs = threadpool.makeRequests(function, result_set, nonsync_logging)
     [pool.putRequest(req) for req in reqs]
     pool.wait()
-
+    logger.info("End of process with base %s, bucket=%s, table=%s" % (base, bucket, table))
 
 if __name__ == '__main__':
     # args
@@ -83,7 +88,7 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
 
     # FIXME - file logging
-    fh = logging.FileHandler('/tmp/abc.log')
+    fh = logging.FileHandler(LOG_PATH)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -96,7 +101,6 @@ if __name__ == '__main__':
     s3_bucket = args.bucket
 
     if db_connection:
-        logger.info("Start to process")
         main(args.region, args.bucket, args.table, args.base, args.threadcount)
     else:
         raise ImportError("No DB connection")
