@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--base", type=str, help="s3 | dynamodb", default="s3", required=False)
 
     # logging
-    logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': '/tmp/mylog.log'})
+    logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': LOG_PATH})
     logger = logging.getLogger(__name__)
 
     # FIXME - file logging
