@@ -6,7 +6,7 @@ from lib.s3 import S3
 from lib.dynamodb import DynamoDB
 from lib.mssql import MSSql
 
-LOG_PATH = "/tmp/abc.log"
+LOG_PATH = "/tmp/case_err.log"
 
 
 def nonsync_logging(request, key):
@@ -17,21 +17,30 @@ def nonsync_logging(request, key):
 
 
 def case_alignment(key):
-    global db_table, s3_bucket
-    db_connection = Connection("dynamodb", args.region)
-    s3_connection = Connection("s3", args.region)
+    try:
+        # get connection
+        global db_table, s3_bucket, dryrun
+        db_connection = Connection("dynamodb", args.region)
+        s3_connection = Connection("s3", args.region)
 
-    db = DynamoDB(connection=db_connection.new_connection())
-    if db:
-        table = db.get_storage_set(db_table)
-        item = db.get_item(table, hash_key=key.name)
-        db.update_primary_key(table, item, key.lower())
-    s3 = S3(connection=s3_connection.new_connection())
-    if s3:
-        bucket = s3.get_storage_set(s3_bucket)
-        s3obj = s3.get_item(bucket, key)
-        s3.update_primary_key(bucket, s3obj, key.lower())
-    return None
+        # find file key
+        key = key['SHA1']
+        file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key)).lower()
+
+        # case update
+        db = DynamoDB(connection=db_connection.new_connection())
+        if db and not dryrun:
+            table = db.get_storage_set(db_table)
+            item = db.get_item(table, hash_key=file_key)
+            db.update_primary_key(table, item, file_key.lower())
+        s3 = S3(connection=s3_connection.new_connection())
+        if s3 and not dryrun:
+            bucket = s3.get_storage_set(s3_bucket)
+            s3obj = s3.get_item(bucket, file_key)
+            s3.update_primary_key(bucket, s3obj, file_key.lower())
+        return None
+    except:
+        return key
 
 
 def get_result_set():
@@ -58,6 +67,7 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--bucket", type=str, help="S3 bucket name", required=True)
     parser.add_argument("-t", "--table", type=str, help="DynamoDB table name", required=True)
     parser.add_argument("-c", "--threadcount", type=str, help="thread count", default="1", required=False)
+    parser.add_argument('--dryrun', action='store_true')
 
     # logging
     logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': LOG_PATH})
@@ -71,6 +81,8 @@ if __name__ == '__main__':
 
     # parse args
     args = parser.parse_args()
+
     db_table = args.table
     s3_bucket = args.bucket
+    dryrun = args.dryrun
     main(args.bucket, args.table, args.threadcount)

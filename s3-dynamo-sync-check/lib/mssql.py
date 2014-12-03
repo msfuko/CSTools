@@ -16,6 +16,7 @@ class MSSql(object):
     def query(self, query):
         cur = self.connection.cursor()
         cur.execute(query)
+        return cur
 
     def close(self):
         self.connection.close()
