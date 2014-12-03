@@ -29,3 +29,14 @@ class DynamoDB(AWSStorageObject):
     def get_last_item_set(self, item_set):
         return item_set.last_evaluated_key[0] if item_set and item_set.last_evaluated_key else None
 
+    def update_primary_key(self, table, item, new_hash_key_value):
+        """
+        Delete old item and then put
+        :param table:
+        :param item:
+        :param new_hash_key_value:
+        :return:
+        """
+        item.delete()
+        item[item.hash_key_name] = new_hash_key_value
+        item.put()

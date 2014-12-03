@@ -58,7 +58,7 @@ def get_result_set(region, bucket, table, base):
     return result_set
 
 
-def main(region, bucket, table, base, threadcnt='1'):
+def main(region, bucket, table, base, threadcnt):
     logger.info("Start to process as base %s, bucket=%s, table=%s" % (base, bucket, table))
     print base
     result_set = get_result_set(region, bucket, table, base)
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     parser.add_argument("-r", "--region", type=str, help="target AWS region", required=True)
     parser.add_argument("-b", "--bucket", type=str, help="S3 bucket name", required=True)
     parser.add_argument("-t", "--table", type=str, help="DynamoDB table name", required=True)
-    parser.add_argument("-c", "--threadcount", type=str, help="thread count", required=False)
+    parser.add_argument("-c", "--threadcount", type=str, help="thread count", default="1", required=False)
     parser.add_argument("-a", "--base", type=str, help="s3 | dynamodb", default="s3", required=False)
 
     # logging

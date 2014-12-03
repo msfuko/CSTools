@@ -21,3 +21,14 @@ class S3(AWSStorageObject):
 
     def get_last_item_set(self, key_set):
         return key_set[-1].name if len(key_set) else None
+
+    def update_primary_key(self, bucket, key, new_key):
+        """
+        Copy then delete to rename
+        :param bucket:
+        :param key:
+        :param new_key:
+        :return:
+        """
+        key.copy(dst_bucket=bucket.name, dst_key=new_key, preserve_acl=True, encrypt_key=True)
+        key.delete()

@@ -37,3 +37,7 @@ class AWSStorageObject(object):
     @abstractmethod
     def get_last_item_set(self, storage_subset):
         pass
+
+    @abstractmethod
+    def update_primary_key(self, storage_set, key, new_key):
+        pass
