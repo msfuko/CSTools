@@ -18,6 +18,7 @@ def nonsync_logging(request, key):
 
 
 def case_alignment(key):
+    who = None
     try:
         # get connection
         global db_table, s3_bucket, dryrun
@@ -27,23 +28,26 @@ def case_alignment(key):
         # find file key
         key = key['SHA1']
         file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key))
-	print key, file_key
+        print key, file_key
 
         # case update
         db = DynamoDB(connection=db_connection.new_connection())
         if db and not dryrun:
+            who = "db"
             table = db.get_storage_set(db_table)
             item = db.get_item(table, hash_key=file_key)
+            db.update_record(table, "SHA1", item, item['SHA1'].lower())
             db.update_primary_key(table, item, file_key.lower())
         s3 = S3(connection=s3_connection.new_connection())
         if s3 and not dryrun:
+            who = "s3"
             bucket = s3.get_storage_set(s3_bucket)
             s3obj = s3.get_item(bucket, file_key)
             s3.update_primary_key(bucket, s3obj, file_key.lower())
         return None
     except:
-	logger.error(traceback.format_exc())
-        return key
+        logger.error(traceback.format_exc())
+        return "%s - %s" % (who, key)
 
 
 def get_result_set():
@@ -53,9 +57,25 @@ def get_result_set():
     return result_set
 
 
+def get_test_result_set():
+    """
+    temp added for testing
+    :return:
+    """
+    connection = Connection("dynamodb", "us-west-1")
+    storage_obj = DynamoDB(connection=connection.new_connection())
+    storage_obj.set_storage_set_name("cs-file-metadata")
+    storage_set = storage_obj.get_storage_set()
+    result_set = storage_obj.list(storage_set) if storage_set else None
+    return result_set
+
+
 def main(bucket, table, threadcnt):
     logger.info("Start to process - bucket=%s, table=%s" % (bucket, table))
-    result_set = get_result_set()
+    if test:
+        result_set = get_test_result_set()
+    else:
+        result_set = get_result_set()
     pool = threadpool.ThreadPool(int(threadcnt))
     reqs = threadpool.makeRequests(case_alignment, result_set, nonsync_logging)
     [pool.putRequest(req) for req in reqs]
@@ -71,6 +91,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--table", type=str, help="DynamoDB table name", required=True)
     parser.add_argument("-c", "--threadcount", type=str, help="thread count", default="1", required=False)
     parser.add_argument('--dryrun', action='store_true')
+    parser.add_argument('--test', help="use test set", action='store_true')
 
     # logging
     logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': LOG_PATH})
@@ -88,4 +109,5 @@ if __name__ == '__main__':
     db_table = args.table
     s3_bucket = args.bucket
     dryrun = args.dryrun
+    test = args.test
     main(args.bucket, args.table, args.threadcount)

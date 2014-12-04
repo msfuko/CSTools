@@ -32,3 +32,6 @@ class S3(AWSStorageObject):
         """
         key.copy(dst_bucket=bucket.name, dst_key=new_key, preserve_acl=True, encrypt_key=True)
         key.delete()
+
+    def update_record(self, storage_set, field, key, new_key):
+        pass

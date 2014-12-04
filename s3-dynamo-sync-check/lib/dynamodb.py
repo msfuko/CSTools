@@ -40,3 +40,7 @@ class DynamoDB(AWSStorageObject):
         item.delete()
         item[item.hash_key_name] = new_hash_key_value
         item.put()
+
+    def update_record(self, table, field, item, new_item_value):
+        item[field] = new_item_value
+        item.save()

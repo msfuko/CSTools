@@ -41,3 +41,7 @@ class AWSStorageObject(object):
     @abstractmethod
     def update_primary_key(self, storage_set, key, new_key):
         pass
+
+    @abstractmethod
+    def update_record(self, storage_set, field, key, new_key):
+        pass
