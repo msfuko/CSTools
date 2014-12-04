@@ -23,6 +23,7 @@ setup(name='cstool-sync',
                         'nose>=1.3.3',
                         'paramiko',
                         'geventconnpool',
+                        'pymssql',
 						'threadpool>=1.2.7'],
       test_suite='tests',
       tests_require='nose'

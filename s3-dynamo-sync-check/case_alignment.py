@@ -1,6 +1,7 @@
 import argparse
 import logging.config
 import threadpool
+import traceback
 from lib.connection import Connection
 from lib.s3 import S3
 from lib.dynamodb import DynamoDB
@@ -25,7 +26,8 @@ def case_alignment(key):
 
         # find file key
         key = key['SHA1']
-        file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key)).lower()
+        file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key))
+	print key, file_key
 
         # case update
         db = DynamoDB(connection=db_connection.new_connection())
@@ -40,13 +42,14 @@ def case_alignment(key):
             s3.update_primary_key(bucket, s3obj, file_key.lower())
         return None
     except:
+	logger.error(traceback.format_exc())
         return key
 
 
 def get_result_set():
-    conn = MSSql("host", "user", "passwd")
-    conn.connect("database")
-    result_set = conn.query("SELECT SHA1 FROM FileValidation WITH (NOLOCK) WHERE BINARY_CHECKSUM(sha1) = BINARY_CHECKSUM(Upper(sha1))")
+    conn = MSSql("host", "username", "password")
+    conn.connect("FRSCentralStorage")
+    result_set = conn.query("SELECT top 100 SHA1 FROM FileValidation WITH (NOLOCK) WHERE BINARY_CHECKSUM(sha1) = BINARY_CHECKSUM(Upper(sha1))")
     return result_set
 
 
