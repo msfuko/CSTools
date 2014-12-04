@@ -16,7 +16,7 @@ def nonsync_logging(request, (success, key)):
     if success:
         logger.info("Success on %s" % key)
     else:
-        logger.info("Not Sync object - " + key)
+        logger.error("Not Sync object - " + key)
 
 
 def case_alignment(key):
@@ -30,7 +30,6 @@ def case_alignment(key):
         # find file key
         key = key['SHA1']
         file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key))
-        print key, file_key
 
         # case update
         db = DynamoDB(connection=db_connection.new_connection())
