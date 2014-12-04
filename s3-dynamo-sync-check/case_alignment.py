@@ -61,7 +61,7 @@ def case_alignment(key):
 def get_result_set():
     conn = MSSql("host", "username", "password")
     conn.connect("FRSCentralStorage")
-    result_set = conn.query("SELECT top 100 SHA1 FROM FileInfo WITH (NOLOCK) WHERE BINARY_CHECKSUM(sha1) = BINARY_CHECKSUM(Upper(sha1)) ORDER BY sha1")
+    result_set = conn.query("select SHA1 from FileInfo WITH(NOLOCK) where sha1 COLLATE SQL_Latin1_General_CP1_CS_AS = upper(sha1)")
     return result_set
 
 
