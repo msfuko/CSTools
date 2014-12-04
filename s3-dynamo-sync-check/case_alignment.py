@@ -10,10 +10,12 @@ from lib.mssql import MSSql
 LOG_PATH = "/tmp/case_err.log"
 
 
-def nonsync_logging(request, key):
+def nonsync_logging(request, (success, key)):
     """non-sync item will be logged here
     """
-    if key:
+    if success:
+        logger.info("Success on %s" % key)
+    else:
         logger.info("Not Sync object - " + key)
 
 
@@ -32,22 +34,29 @@ def case_alignment(key):
 
         # case update
         db = DynamoDB(connection=db_connection.new_connection())
-        if db and not dryrun:
+        if not dryrun:
             who = "db"
             table = db.get_storage_set(db_table)
             item = db.get_item(table, hash_key=file_key)
-            db.update_record(table, "SHA1", item, item['SHA1'].lower())
-            db.update_primary_key(table, item, file_key.lower())
+            if item:
+                db.update_record(table, "SHA1", item, item['SHA1'].lower())
+                db.update_primary_key(table, item, file_key.lower())
+            else:
+                return (False, "%s - %s" % (who, file_key))
+
         s3 = S3(connection=s3_connection.new_connection())
-        if s3 and not dryrun:
+        if not dryrun:
             who = "s3"
             bucket = s3.get_storage_set(s3_bucket)
             s3obj = s3.get_item(bucket, file_key)
-            s3.update_primary_key(bucket, s3obj, file_key.lower())
-        return None
+            if s3obj:
+                s3.update_primary_key(bucket, s3obj, file_key.lower())
+            else:
+                return (False, "%s - %s" % (who, file_key))
+        return (True, file_key)
     except:
         logger.error(traceback.format_exc())
-        return "%s - %s" % (who, key)
+        return (False, "%s - %s" % (who, key))
 
 
 def get_result_set():
