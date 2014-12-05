@@ -41,7 +41,7 @@ def case_alignment(key):
                 db.update_record(table, "SHA1", item, item['SHA1'].lower())
                 db.update_primary_key(table, item, file_key.lower())
             else:
-                return (False, "%s - %s" % (who, file_key))
+                return False, "%s - %s" % (who, file_key)
 
         s3 = S3(connection=s3_connection.new_connection())
         if not dryrun:
@@ -51,11 +51,11 @@ def case_alignment(key):
             if s3obj:
                 s3.update_primary_key(bucket, s3obj, file_key.lower())
             else:
-                return (False, "%s - %s" % (who, file_key))
-        return (True, file_key)
+                return False, "%s - %s" % (who, file_key)
+        return True, file_key
     except:
         logger.error(traceback.format_exc())
-        return (False, "%s - %s" % (who, key))
+        return False, "%s - %s" % (who, key)
 
 
 def get_result_set():
@@ -85,8 +85,11 @@ def main(bucket, table, threadcnt):
     else:
         result_set = get_result_set()
     pool = threadpool.ThreadPool(int(threadcnt))
+    logger.debug("Make request")
     reqs = threadpool.makeRequests(case_alignment, result_set, nonsync_logging)
+    logger.debug("Put request")
     [pool.putRequest(req) for req in reqs]
+    logger.debug("Wait")
     pool.wait()
     logger.info("End of process with bucket=%s, table=%s" % (bucket, table))
 
