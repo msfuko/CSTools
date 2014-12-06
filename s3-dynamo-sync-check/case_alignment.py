@@ -1,12 +1,11 @@
 import argparse
 import logging.config
-import threadpool
 import traceback
+import lib.worker
 from lib.connection import Connection
 from lib.s3 import S3
 from lib.dynamodb import DynamoDB
 from lib.mssql import MSSql
-
 LOG_PATH = "/tmp/case_err.log"
 
 
@@ -84,9 +83,9 @@ def main(bucket, table, threadcnt):
         result_set = get_test_result_set()
     else:
         result_set = get_result_set()
-    pool = threadpool.ThreadPool(int(threadcnt))
+    pool = lib.worker.ThreadPool(int(threadcnt))
     logger.debug("Make request")
-    reqs = threadpool.makeRequests(case_alignment, result_set, nonsync_logging)
+    reqs = lib.worker.makeRequests(case_alignment, result_set, nonsync_logging)
     logger.debug("Put request")
     [pool.putRequest(req) for req in reqs]
     logger.debug("Wait")
