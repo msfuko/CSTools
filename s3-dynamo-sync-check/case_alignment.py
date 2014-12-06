@@ -22,16 +22,13 @@ def case_alignment(key):
     who = None
     try:
         # get connection
-        global db_table, s3_bucket, dryrun
-        db_connection = Connection("dynamodb", args.region)
-        s3_connection = Connection("s3", args.region)
+        global db, s3, db_table, s3_bucket, dryrun
 
         # find file key
         key = key['SHA1']
         file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key))
 
         # case update
-        db = DynamoDB(connection=db_connection.new_connection())
         if not dryrun:
             who = "db"
             table = db.get_storage_set(db_table)
@@ -42,7 +39,6 @@ def case_alignment(key):
             else:
                 return False, "%s - %s" % (who, file_key)
 
-        s3 = S3(connection=s3_connection.new_connection())
         if not dryrun:
             who = "s3"
             bucket = s3.get_storage_set(s3_bucket)
@@ -120,4 +116,8 @@ if __name__ == '__main__':
     s3_bucket = args.bucket
     dryrun = args.dryrun
     test = args.test
+    db_connection = Connection("dynamodb", args.region)
+    db = DynamoDB(connection=db_connection.new_connection())
+    s3_connection = Connection("s3", args.region)
+    s3 = S3(connection=s3_connection.new_connection())
     main(args.bucket, args.table, args.threadcount)
