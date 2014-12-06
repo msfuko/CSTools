@@ -1,6 +1,6 @@
 import argparse
 import logging.config
-import threadpool
+import lib.worker
 from lib.connection import Connection
 from lib.s3 import S3
 from lib.dynamodb import DynamoDB
@@ -11,8 +11,7 @@ LOG_PATH = "/tmp/abc.log"
 def s3_checker(key):
     """THREAD METHOD - check result_set is all in DynamoDB
     """
-    global db_connection, db_table
-    db = DynamoDB(connection=db_connection.new_connection())
+    global db, db_table
     if db:
         table = db.get_storage_set(db_table)
         item = db.get_item(table, hash_key=key.name)
@@ -24,8 +23,7 @@ def dynamodb_checker(key):
     """
     #TODO - merge with s3_checker
     key = key['FileKey']
-    global s3_connection, s3_bucket
-    s3 = S3(connection=s3_connection.new_connection())
+    global s3, s3_bucket
     if s3:
         bucket = s3.get_storage_set(s3_bucket)
         s3obj = s3.get_item(bucket, key)
@@ -63,8 +61,8 @@ def main(region, bucket, table, base, threadcnt):
     print base
     result_set = get_result_set(region, bucket, table, base)
     function = globals()[base + "_checker"]
-    pool = threadpool.ThreadPool(int(threadcnt))
-    reqs = threadpool.makeRequests(function, result_set, nonsync_logging)
+    pool = lib.worker.ThreadPool(int(threadcnt))
+    reqs = lib.worker.makeRequests(function, result_set, nonsync_logging)
     [pool.putRequest(req) for req in reqs]
     pool.wait()
     logger.info("End of process with base %s, bucket=%s, table=%s" % (base, bucket, table))
@@ -92,10 +90,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     db_connection = Connection("dynamodb", args.region)
     db_table = args.table
+    db = DynamoDB(connection=db_connection.new_connection())
     s3_connection = Connection("s3", args.region)
     s3_bucket = args.bucket
-
-    if db_connection:
+    s3 = S3(connection=s3_connection.new_connection())
+    if db and s3:
         main(args.region, args.bucket, args.table, args.base, args.threadcount)
     else:
         raise ImportError("No DB connection")
