@@ -1,6 +1,8 @@
 import argparse
 import logging.config
 import traceback
+import time
+import datetime
 import lib.worker
 from lib.connection import Connection
 from lib.s3 import S3
@@ -9,13 +11,13 @@ from lib.mssql import MSSql
 LOG_PATH = "/tmp/case_err.log"
 
 
-def nonsync_logging(request, (success, key)):
+def nonsync_logging(request, (success, key, fid)):
     """non-sync item will be logged here
     """
     if success:
-        logger.info("Success on %s" % key)
+        logger.info("Success on %s, fid=%s" % (key, fid))
     else:
-        logger.error("Not Sync object - " + key)
+        logger.error("Not Sync object - %s, fid=%s" % (key, fid))
 
 
 def case_alignment(key):
@@ -25,6 +27,7 @@ def case_alignment(key):
         global db, s3, db_table, s3_bucket, dryrun
 
         # find file key
+        fid = key['Fid']
         key = key['SHA1']
         file_key = '/'.join(('frs', key[:2], key[2:5], key[5:8], key[8:13], key))
 
@@ -37,7 +40,7 @@ def case_alignment(key):
                 db.update_record(table, "SHA1", item, item['SHA1'].lower())
                 db.update_primary_key(table, item, file_key.lower())
             else:
-                return False, "%s - %s" % (who, file_key)
+                return False, "%s - %s" % (who, file_key), fid
 
         if not dryrun:
             who = "s3"
@@ -46,17 +49,19 @@ def case_alignment(key):
             if s3obj:
                 s3.update_primary_key(bucket, s3obj, file_key.lower())
             else:
-                return False, "%s - %s" % (who, file_key)
-        return True, file_key
+                return False, "%s - %s" % (who, file_key), fid
+        return True, file_key, fid
     except:
         logger.error(traceback.format_exc())
-        return False, "%s - %s" % (who, key)
+        return False, "%s - %s" % (who, key), fid
 
 
 def get_result_set():
     conn = MSSql("host", "username", "password")
     conn.connect("FRSCentralStorage")
-    result_set = conn.query("select SHA1 from FileInfo WITH(NOLOCK) where sha1 COLLATE SQL_Latin1_General_CP1_CS_AS = upper(sha1)")
+    result_set = conn.query("SELECT TOP (400000) Fid, SHA1 from FileInfo WITH(NOLOCK) where sha1 COLLATE SQL_Latin1_General_CP1_CS_AS = upper(sha1) AND Fid > 0 ORDER BY Fid")
+    #result_set = conn.query("select top 500000 SHA1 from FileInfo WITH(NOLOCK) where sha1 COLLATE SQL_Latin1_General_CP1_CS_AS = upper(sha1)")
+    #result_set = conn.query("SELECT top 100 SHA1 FROM FileInfo WITH (NOLOCK) WHERE BINARY_CHECKSUM(sha1) = BINARY_CHECKSUM(Upper(sha1)) ORDER BY sha1")
     return result_set
 
 
@@ -80,11 +85,11 @@ def main(bucket, table, threadcnt):
     else:
         result_set = get_result_set()
     pool = lib.worker.ThreadPool(int(threadcnt))
-    logger.debug("Make request")
+    logger.info("Make request")
     reqs = lib.worker.makeRequests(case_alignment, result_set, nonsync_logging)
-    logger.debug("Put request")
+    logger.info("Put request")
     [pool.putRequest(req) for req in reqs]
-    logger.debug("Wait")
+    logger.info("Wait")
     pool.wait()
     logger.info("End of process with bucket=%s, table=%s" % (bucket, table))
 
@@ -98,7 +103,8 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--threadcount", type=str, help="thread count", default="1", required=False)
     parser.add_argument('--dryrun', action='store_true')
     parser.add_argument('--test', help="use test set", action='store_true')
-
+    ts = time.time()
+    LOG_PATH = "/tmp/case_log_%s.log" % datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
     # logging
     logging.config.fileConfig('logging.ini', disable_existing_loggers=False, defaults={'logfilename': LOG_PATH})
     logger = logging.getLogger(__name__)
