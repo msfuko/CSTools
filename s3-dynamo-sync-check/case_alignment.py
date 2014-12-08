@@ -8,7 +8,7 @@ from lib.connection import Connection
 from lib.s3 import S3
 from lib.dynamodb import DynamoDB
 from lib.mssql import MSSql
-LOG_PATH = "/tmp/case_err.log"
+from lib.sns import SNS
 
 
 def nonsync_logging(request, (success, key, fid)):
@@ -22,6 +22,7 @@ def nonsync_logging(request, (success, key, fid)):
 
 def case_alignment(key):
     who = None
+    fid = None
     try:
         # get connection
         global db, s3, db_table, s3_bucket, dryrun
@@ -127,3 +128,6 @@ if __name__ == '__main__':
     s3_connection = Connection("s3", args.region)
     s3 = S3(connection=s3_connection.new_connection())
     main(args.bucket, args.table, args.threadcount)
+    sns_connection = Connection("sns", args.region)
+    sns = SNS(connection=sns_connection.new_connection())
+    sns.send("CS-team", "Done", "meh :-D")

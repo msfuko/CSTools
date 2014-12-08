@@ -1,14 +1,13 @@
-import logging
 from abc import ABCMeta, abstractmethod
+from awsobject import AWSObject
 
 
-class AWSStorageObject(object):
+class AWSStorageObject(AWSObject):
 
     __metaclass__ = ABCMeta
 
     def __init__(self, connection=None, logger=None):
-        self.conn = connection
-        self.logger = logger or logging.getLogger(__name__)
+        super(AWSStorageObject, self).__init__(connection=connection, logger=logger)
         self.storage_set_name = None
 
     def set_storage_set_name(self, name):
